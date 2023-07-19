@@ -5,25 +5,8 @@ import React from 'react';
 import { makeObj, makeObjFromModel } from '../loader/obj';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei';
-
-/*
-<div id="drop-zone" style={{
-  position: 'fixed',
-  boxSizing: 'border-box',
-  height: '100%',
-  width: '100%',
-  padding: '16px',
-}}>
-  <div style={{
-    boxSizing: 'border-box',
-    height: '100%',
-    width: '100%',
-    border: '5px solid blue',
-  }}
-  ></div>
-
-</div>
-*/
+import { NormalConverter } from './NormalConverter';
+import { useFileUpload } from './useFileUpload';
 
 type Mlods = ReturnType<typeof readPackageMlods>;
 type Mlod = Mlods[0];
@@ -133,57 +116,6 @@ const downloadMlod = (fileName: string, mlod: Mlod) => {
   document.body.removeChild(anchor);
 };
 
-const uploadFile = async (file: File): Promise<ArrayBuffer> => {
-  const reader = new FileReader();
-
-  return new Promise((resolve, reject) => {
-    reader.onloadend = () => {
-      const result = reader.result;
-
-      if (!result || typeof result === 'string') {
-        reject('Couldn\'t read file');
-      }
-
-      resolve(result as ArrayBuffer);
-    };
-
-    reader.readAsArrayBuffer(file);
-  });
-};
-
-const useFileUpload = (onUpload: (result: ArrayBuffer) => void) => {
-  const onDrop = (event: React.DragEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    console.log(event.dataTransfer.items);
-    const item = event.dataTransfer.items[0];
-
-    if (!item) {
-      throw 'No file uploaded';
-    }
-
-    const file = item.getAsFile();
-
-    if (!file) {
-      throw 'Cound\'t read file';
-    }
-
-    return uploadFile(file).then(onUpload);
-  };
-
-  const onOpen = (event: React.ChangeEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      throw 'No file uploaded';
-    }
-
-    return uploadFile(file).then(onUpload);
-  };
-
-  return { onDrop, onOpen };
-};
-
 const ModelViewer = () => {
   const [mlods, setMlods] = useState<Mlods | null>([]);
   const [viewerTarget, setViewerTarget] = useState<number | null>(null);
@@ -266,158 +198,6 @@ const ModelViewer = () => {
   );
 };
 
-const loadImage = (buffer: ArrayBuffer) => {
-  return new Promise<HTMLImageElement>((resolve) => {
-    const img = document.createElement('img');
-    const url = URL.createObjectURL(new Blob([buffer]));
-    img.onload = () => {
-      resolve(img);
-    };
-
-    img.src = url;
-  });
-};
-
-const NormalConversion = () => {
-  const [normalMap, setNormalMap] = useState<HTMLImageElement>();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imageContainerRef = useRef<HTMLDivElement>(null);
-
-  const convertFromSims = () => {
-    const canvas = canvasRef.current;
-    if (!canvas ||!normalMap) {
-      return;
-    }
-
-    const context = canvas.getContext('2d')!;
-    context.drawImage(normalMap, 0, 0);
-
-    const { width, height } = canvas;
-    const imageData = context.getImageData(0, 0, width, height, { }).data;
-
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const offset = ((y * width) + x) * 4;
-        // const red = imageData[offset + 0];
-        const green = imageData[offset + 1];
-        // const blue = imageData[offset + 2];
-        const alpha = imageData[offset + 3];
-
-        // Clear the current pixel
-        // context.fillStyle = `rgba(0, 0, 0, 1.0)`;
-        // context.fillRect(x, y, 1, 1);
-
-        const normal = [alpha, green, 255];
-        const magnitude = Math.sqrt(normal[0] ** 2 + normal[1] ** 2 + normal[2] ** 2);
-        const adjustedNormal = normal.map(x => (x / magnitude) * 255);
-        const [vx, vy, vz] = adjustedNormal;
-
-        // const [vx, vy, vz] = normal.map(x => x);
-        context.fillStyle = `rgba(${vx}, ${vy}, ${vz}, 1.0)`;
-        context.fillRect(x, y, 1, 1);
-      }
-    }
-  };
-
-  const convertToSims = () => {
-
-  };
-
-  const onUpload = async (result: ArrayBuffer) => {
-    const image = await loadImage(result);
-    setNormalMap(image);
-  };
-
-  const { onDrop, onOpen } = useFileUpload(onUpload);
-
-  // Attach our normal map image if one exists.
-  useEffect(() => {
-    if (!normalMap || !imageContainerRef.current) {
-      return;
-    }
-
-    imageContainerRef.current.innerHTML = '';
-    imageContainerRef.current.append(normalMap);
-
-    // Also clear our canvas if it exists.
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const context = canvas.getContext('2d');
-      context?.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  }, [normalMap]);
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#222',
-        padding: '32px',
-        minWidth: '450px',
-      }}
-    >
-      <h3>Sims Normal Converter</h3>
-      <input
-        type="file"
-        onDrop={onDrop}
-        onChange={onOpen}
-        style={{ marginBottom: '16px' }}
-      ></input>
-
-      {normalMap && (
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '16px',
-        }}>
-          <div
-            style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div
-                ref={imageContainerRef}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  maxWidth: '400px',
-                  maxHeight: '400px',
-                }}
-              />
-
-              <div style={{
-                display: 'flex',
-                flexDirection: 'row',
-                width: '100%',
-                justifyContent: 'space-evenly',
-              }}>
-                <button onClick={convertToSims}>To Sims Format</button>
-                <button onClick={convertFromSims}>From Sims Format</button>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                maxWidth: '400px',
-                maxHeight: '400px',
-              }}
-            >
-              <canvas
-                ref={canvasRef}
-                width={normalMap.width}
-                height={normalMap.height}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-};
-
 const App = () => {
   return (
     <div
@@ -425,18 +205,18 @@ const App = () => {
         flexDirection: 'column',
         position: 'absolute',
         display: 'flex',
-        justifyContent: 'center',
         boxSizing: 'border-box',
         width: '100%',
         height: '100%',
         padding: '32px',
         alignContent: 'center',
-        flexWrap: 'wrap',
+        flexWrap: 'nowrap',
         gap: '16px',
+        alignItems: 'center',
       }}
     >
       <ModelViewer />
-      <NormalConversion />
+      <NormalConverter />
     </div>
   );
 };

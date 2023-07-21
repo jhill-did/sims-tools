@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { useFileUpload } from "./useFileUpload";
+import { useFileUpload } from './useFileUpload';
+import { Button } from './Button';
 
 type Props = {
   onUpload: (file: ArrayBuffer) => void;
@@ -38,10 +39,9 @@ export const FileDropZone = (props: Props) => {
       <span style={{ marginBottom: '8px' }}>{props.children}</span>
       <span>Drag & Drop a file to upload</span>
       <span>PNG or JPG</span>
-      <button
-        className="app-button"
-        onClick={() => { inputRef.current?.click(); }}
-      >Select File</button>
+      <Button onClick={() => { inputRef.current?.click(); }}>
+        Select File
+      </Button>
     </div>
   );
 };

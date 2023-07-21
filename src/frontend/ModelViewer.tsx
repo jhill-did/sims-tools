@@ -1,12 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
-import { readPackageMlods } from '../loader/main';
-import React from 'react';
+import React, { useState } from 'react';
+import { useFileUpload } from './useFileUpload';
 import { makeObj, makeObjFromModel } from '../loader/obj';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei';
-import { NormalConverter } from './NormalConverter';
-import { useFileUpload } from './useFileUpload';
+import { readPackageMlods } from '../loader/main';
 
 type Mlods = ReturnType<typeof readPackageMlods>;
 type Mlod = Mlods[0];
@@ -88,7 +85,7 @@ const Viewer = ({
           onChange={(e) => { onChangeDownloadName(e.target.value); }}
         ></input>
       </div>
-      
+
       <Canvas>
         <PerspectiveCamera makeDefault position={[4, 4, 4]} />
         <OrbitControls />
@@ -116,7 +113,8 @@ const downloadMlod = (fileName: string, mlod: Mlod) => {
   document.body.removeChild(anchor);
 };
 
-const ModelViewer = () => {
+
+export const ModelViewer = () => {
   const [mlods, setMlods] = useState<Mlods | null>([]);
   const [viewerTarget, setViewerTarget] = useState<number | null>(null);
   const [downloadName, setDownloadName] = useState('model.obj');
@@ -197,31 +195,3 @@ const ModelViewer = () => {
     </div>
   );
 };
-
-const App = () => {
-  return (
-    <div
-      style={{
-        flexDirection: 'column',
-        position: 'absolute',
-        display: 'flex',
-        boxSizing: 'border-box',
-        width: '100%',
-        height: '100%',
-        padding: '32px',
-        alignContent: 'center',
-        flexWrap: 'nowrap',
-        gap: '16px',
-        alignItems: 'center',
-      }}
-    >
-      <ModelViewer />
-      <NormalConverter />
-    </div>
-  );
-};
-
-const root = createRoot(document.getElementById('app-root'));
-root.render(<App />);
-
-console.log('rendering');

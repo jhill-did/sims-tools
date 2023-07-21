@@ -29,6 +29,31 @@
         background-color: #222;
       }
 
+      .app-icon-button {
+        border-radius: 4px;
+        border: none;
+        color: #eee;
+        background-color: #333;
+        cursor: pointer;
+        width: 24px;
+        height: 24px;
+        padding: 0px;
+        box-sizing: border-box;
+      }
+
+      .app-icon-button img {
+        width: 20px;
+        height: 20px;
+      }
+
+      .app-icon-button:hover {
+        background-color: #444;
+      }
+
+      .app-icon-button:active {
+        background-color: #222;
+      }
+
       .app-drop-zone {
         display: flex;
         flex-direction: column;
@@ -46,6 +71,32 @@
         background-color: #444;
         border-style: solid;
       }
+
+      .tooltip {
+        position: relative;
+        display: inline-block;
+        border-bottom: 1px dotted black;
+      }
+
+      .tooltip .tooltip-text {
+        display: flex;
+        visibility: hidden;
+        background-color: #111;
+        color: #eee;
+        text-align: center;
+        padding: 5px 10px;
+        border-radius: 6px;
+        white-space: nowrap;
+      
+        position: absolute;
+        z-index: 1;
+      }
+
+      .tooltip:hover .tooltip-text {
+        visibility: visible;
+        top: -5px;
+        left: 150%;
+      }
     </style>
   </head>
   <body>
@@ -53,4 +104,4 @@
   </body>
 </html>
 
-<script type="module" src="./src/frontend/main.tsx"></script>
+<script type="module" src="./src/frontend/App.tsx"></script>

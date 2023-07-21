@@ -1,10 +1,10 @@
 import React from 'react';
-import { useState, useRef, useEffect } from 'react';
-import { useFileUpload } from './useFileUpload';
-import { Canvas, useLoader } from '@react-three/fiber';
+import { useState } from 'react';
+import { Canvas } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
-import { Texture, TextureLoader, NoColorSpace, LinearSRGBColorSpace, NoToneMapping } from 'three';
+import { Texture, TextureLoader } from 'three';
 import { FileDropZone } from './FileDropZone';
+import { Button } from './Button';
 
 const vertexShader = `
   varying vec2 varyingUv;
@@ -70,18 +70,13 @@ const loadImage = (buffer: ArrayBuffer) => {
 type Mode = 'from-sims' | 'to-sims';
 
 export const NormalConverter = () => {
-  const [normalMap, setNormalMap] = useState<HTMLImageElement>();
   const [mode, setMode] = useState<Mode | null>(null);
   const [texture, setTexture] = useState<Texture>();
 
   const loadTexture = async (result: ArrayBuffer) => {
-    const image = await loadImage(result);
-    // setNormalMap(image);
     const url = URL.createObjectURL(new Blob([result]));
     const loader = new TextureLoader();
     loader.load(url, (loaderResult) => {
-      // Normals are non-color data.
-      // loaderResult.colorSpace = NoColorSpace;
       setTexture(loaderResult);
     });
   };
@@ -162,7 +157,7 @@ export const NormalConverter = () => {
           }}
         >
           <span style={{ width: '100%' }}>
-            <button onClick={() => { setTexture(undefined); }}>Back</button>
+            <Button onClick={() => { setTexture(undefined); }}>Back</Button>
           </span>
 
           <div

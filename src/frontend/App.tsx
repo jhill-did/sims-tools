@@ -38,13 +38,13 @@ const App = () => {
       >
         <Tooltip text="Model Viewer">
           <button className="app-icon-button" onClick={() => { setMode('model-viewer'); }}>
-            <img src="/3d-rotate.svg" style={{ filter: 'invert(0.8)' }} />
+            <img src="3d-rotate.svg" style={{ filter: 'invert(0.8)' }} />
           </button>
         </Tooltip>
         
         <Tooltip text="Normal Converter">
           <button className="app-icon-button" onClick={() => { setMode('normal-converter'); }}>
-            <img src="/arrow-up-bar.svg" style={{ filter: 'invert(0.8)' }} />
+            <img src="arrow-up-bar.svg" style={{ filter: 'invert(0.8)' }} />
           </button>
         </Tooltip>
       </div>

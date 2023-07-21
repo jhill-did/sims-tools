@@ -5,6 +5,7 @@ import { Button } from './Button';
 type Props = {
   onUpload: (file: ArrayBuffer) => void;
   children?: string | JSX.Element | JSX.Element[];
+  extensions?: string[];
 };
 
 export const FileDropZone = (props: Props) => {
@@ -15,6 +16,9 @@ export const FileDropZone = (props: Props) => {
   });
 
   const dropRef = useRef<HTMLDivElement>(null);
+
+  const adjustedExtensions = props.extensions ?? ['*.png', '*.jpg'];
+  const extensionElements = adjustedExtensions.join(', ');
 
   return (
     <div
@@ -38,7 +42,7 @@ export const FileDropZone = (props: Props) => {
 
       <span style={{ marginBottom: '8px' }}>{props.children}</span>
       <span>Drag & Drop a file to upload</span>
-      <span>PNG or JPG</span>
+      <span>{extensionElements}</span>
       <Button onClick={() => { inputRef.current?.click(); }}>
         Select File
       </Button>

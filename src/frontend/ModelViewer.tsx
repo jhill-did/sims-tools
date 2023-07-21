@@ -4,6 +4,8 @@ import { makeObj, makeObjFromModel } from '../loader/obj';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei';
 import { readPackageMlods } from '../loader/main';
+import { FileDropZone } from './FileDropZone';
+import { Button } from './Button';
 
 type Mlods = ReturnType<typeof readPackageMlods>;
 type Mlod = Mlods[0];
@@ -78,8 +80,9 @@ const Viewer = ({
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'row', gap: '4px' }}>
-        <button onClick={onDownload}>Download</button>
+        <Button onClick={onDownload}>Download</Button>
         <input
+          className="app-text-input"
           type="text"
           value={downloadName}
           onChange={(e) => { onChangeDownloadName(e.target.value); }}
@@ -128,8 +131,6 @@ export const ModelViewer = () => {
     setViewerTarget(target);
   };
 
-  const { onDrop, onOpen } = useFileUpload(onUpload);
-
   const ughStyle: React.CSSProperties = {
     textAlign: 'center',
   };
@@ -172,12 +173,7 @@ export const ModelViewer = () => {
         }}
       >
         <h3>Sims 3 Model Viewer</h3>
-        <input
-          type="file"
-          onDrop={onDrop}
-          onChange={onOpen}
-          style={{ marginBottom: '16px' }}
-        ></input>
+        <FileDropZone onUpload={onUpload} extensions={['*.package']} />
 
         {mlodElements}
       </div>

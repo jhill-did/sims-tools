@@ -2,7 +2,7 @@ import React from 'react';
 import { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
-import { Texture, TextureLoader } from 'three';
+import { LinearEncoding, NoToneMapping, Texture, TextureLoader } from 'three';
 import { FileDropZone } from './FileDropZone';
 import { Button } from './Button';
 
@@ -20,9 +20,16 @@ const vertexShader = `
   }
 `;
 
+const colorCorrection = `
+  vec3 toDisplay(vec3 linear) { return pow(linear, vec3(1.0 / 2.2)); }
+  vec3 toLinear(vec3 display) { return pow(display, vec3(2.2)); }
+`;
+
 const toSimsFragmentShader = `
   uniform sampler2D uTexture;
   varying vec2 varyingUv;
+
+  ${colorCorrection}
 
   void main() {
     vec3 sourceColor = texture(uTexture, varyingUv).xyz;
@@ -41,17 +48,23 @@ const fromSimsFragmentShader = `
   uniform sampler2D uTexture;
   varying vec2 varyingUv;
 
+  ${colorCorrection}
+
   void main() {
     vec4 sourceColor = texture(uTexture, varyingUv).rgba;
+
+    float red = sourceColor.a;
+    float green = sourceColor.g;
+
+    float blue = sqrt(1.0 - pow((red * 2.0) - 1.0, 2.0) + pow((green * 2.0) - 1.0, 2.0)) / 2.0 + 0.5;
+
     vec3 direction = vec3(
-      sourceColor.a,
-      sourceColor.g,
-      1.0
+      red,
+      green,
+      blue
     );
 
-    vec3 normalized = normalize(direction);
-
-    gl_FragColor = vec4(normalized, 1.0);
+    gl_FragColor = vec4(direction, 1.0);
   }
 `;
 
@@ -77,6 +90,7 @@ export const NormalConverter = () => {
     const url = URL.createObjectURL(new Blob([result]));
     const loader = new TextureLoader();
     loader.load(url, (loaderResult) => {
+      loaderResult.colorSpace = '';
       setTexture(loaderResult);
     });
   };
@@ -164,16 +178,16 @@ export const NormalConverter = () => {
             style={{
               height: texture.image.width,
               width: texture.image.height,
-              maxHeight: '400px',
-              maxWidth: '400px',
             }}
           >
             <Canvas
               linear
-              flat
               gl={{
                 alpha: true,
                 premultipliedAlpha: false,
+                toneMapping: NoToneMapping,
+                outputColorSpace: '',
+                toneMappingExposure: 1,
               }}
             >
               <OrthographicCamera
@@ -190,6 +204,7 @@ export const NormalConverter = () => {
                   vertexShader={vertexShader}
                   fragmentShader={fragmentShader}
                   uniforms={{ uTexture: { value: texture }}}
+                  toneMapped={false}
                 />
               </mesh>
             </Canvas>

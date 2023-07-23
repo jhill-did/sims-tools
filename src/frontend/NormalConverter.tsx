@@ -143,7 +143,7 @@ export const NormalConverter = () => {
             </div>
           </FileDropZone>
 
-          <label>To Sims Encoding from Standard Normal</label>
+          <label>From Standard Normal to Sims Encoding</label>
           <FileDropZone onUpload={onUploadStandardNormal}>
             <div
               style={{

@@ -174,42 +174,43 @@ export const NormalConverter = () => {
             <Button onClick={() => { setTexture(undefined); }}>Back</Button>
           </span>
 
-          <div
-            style={{
-              height: texture.image.width,
-              width: texture.image.height,
-            }}
-          >
-            <Canvas
-              linear
-              gl={{
-                alpha: true,
-                premultipliedAlpha: false,
-                toneMapping: NoToneMapping,
-                outputColorSpace: '',
-                toneMappingExposure: 1,
+          <div style={{ maxWidth: '400px', maxHeight: '400px', overflow: 'scroll' }}>
+            <div
+              style={{
+                height: texture.image.width,
+                width: texture.image.height,
               }}
             >
-              <OrthographicCamera
-                makeDefault
-                zoom={1}
-                top={1}
-                bottom={-1}
-                left={1}
-                right={-1}
-              />
-              <mesh rotation={[Math.PI, 0, Math.PI]} position={[0, 0, -1]}>
-                <planeGeometry args={[2, 2]} />
-                <shaderMaterial
-                  vertexShader={vertexShader}
-                  fragmentShader={fragmentShader}
-                  uniforms={{ uTexture: { value: texture }}}
-                  toneMapped={false}
+              <Canvas
+                linear
+                gl={{
+                  alpha: true,
+                  premultipliedAlpha: false,
+                  toneMapping: NoToneMapping,
+                  outputColorSpace: '',
+                  toneMappingExposure: 1,
+                }}
+              >
+                <OrthographicCamera
+                  makeDefault
+                  zoom={1}
+                  top={1}
+                  bottom={-1}
+                  left={1}
+                  right={-1}
                 />
-              </mesh>
-            </Canvas>
+                <mesh rotation={[Math.PI, 0, Math.PI]} position={[0, 0, -1]}>
+                  <planeGeometry args={[2, 2]} />
+                  <shaderMaterial
+                    vertexShader={vertexShader}
+                    fragmentShader={fragmentShader}
+                    uniforms={{ uTexture: { value: texture }}}
+                    toneMapped={false}
+                  />
+                </mesh>
+              </Canvas>
+            </div>
           </div>
-
           <label>(Right Click, Save Image As)</label>
         </div>
       )}

@@ -114,6 +114,8 @@ export const NormalConverter = () => {
     filter: 'drop-shadow(rgba(17, 17, 17, 0.25) 8px 8px 7px)',
   };
 
+  console.log(texture?.image.width, texture?.image.height);
+
   return (
     <div
       style={{
@@ -177,8 +179,8 @@ export const NormalConverter = () => {
           <div style={{ maxWidth: '400px', maxHeight: '400px', overflow: 'scroll' }}>
             <div
               style={{
-                height: texture.image.width,
-                width: texture.image.height,
+                height: texture.image.height,
+                width: texture.image.width,
               }}
             >
               <Canvas

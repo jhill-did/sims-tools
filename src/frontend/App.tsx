@@ -63,5 +63,3 @@ const App = () => {
 
 const root = createRoot(document.getElementById('app-root'));
 root.render(<App />);
-
-console.log('rendering');

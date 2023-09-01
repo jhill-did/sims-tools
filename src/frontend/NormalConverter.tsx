@@ -1,22 +1,26 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useState } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrthographicCamera } from '@react-three/drei';
-import { LinearEncoding, NoToneMapping, Texture, TextureLoader } from 'three';
 import { FileDropZone } from './FileDropZone';
 import { Button } from './Button';
+import { Image, Png } from 'image-io';
 
-const vertexShader = `
-  varying vec2 varyingUv;
+const fullScreenTriangle = Float32Array.from([
+  -1.0, -3.0, 0.0, 2.0, // x y u v
+  -1.0, 1.0, 0.0, 0.0,
+  3.0, 1.0, 2.0, 0.0,
+]);
+
+const vertexShader = `#version 300 es
+  precision mediump float;
+  
+  layout(location = 0) in vec2 position;
+  layout(location = 1) in vec2 uv;
+
+  out vec2 varyingUv;
 
   void main() {
-    vec4 modelPosition = modelMatrix * vec4(position, 1.0);
-
-    vec4 viewPosition = viewMatrix * modelPosition;
-    vec4 projectedPosition = projectionMatrix * viewPosition;
+    gl_Position = vec4(position, 0.0, 1.0);
     varyingUv = uv;
-
-    gl_Position = projectedPosition;
   }
 `;
 
@@ -25,11 +29,15 @@ const colorCorrection = `
   vec3 toLinear(vec3 display) { return pow(display, vec3(2.2)); }
 `;
 
-const toSimsFragmentShader = `
+const toSimsFragmentShader = `#version 300 es
+  precision mediump float;
+
   uniform sampler2D uTexture;
-  varying vec2 varyingUv;
+  in vec2 varyingUv;
 
   ${colorCorrection}
+
+  out vec4 fragColor;
 
   void main() {
     vec3 sourceColor = texture(uTexture, varyingUv).xyz;
@@ -40,21 +48,32 @@ const toSimsFragmentShader = `
       sourceColor.r
     );
 
-    gl_FragColor = swizzled;
+    fragColor = swizzled; // vec4(swizzled.xyz, 1.0);
   }
 `;
 
-const fromSimsFragmentShader = `
+const fromSimsFragmentShader = `#version 300 es
+  precision mediump float;
+
   uniform sampler2D uTexture;
-  varying vec2 varyingUv;
+  in vec2 varyingUv;
 
   ${colorCorrection}
+
+  out vec4 fragColor;
 
   void main() {
     vec4 sourceColor = texture(uTexture, varyingUv).rgba;
 
     float red = sourceColor.a;
     float green = sourceColor.g;
+
+    float redSquare = pow((red * 2.0) - 1.0, 2.0);
+    float greenSquare = pow((green * 2.0) - 1.0, 2.0);
+    float blueSquare = 1.0 - redSquare + greenSquare;
+    float blueSqrt = sqrt(blueSquare);
+    // float blue = (blueSqrt + 1.0) / 2.0;
+    float debug = red;
 
     float blue = sqrt(1.0 - pow((red * 2.0) - 1.0, 2.0) + pow((green * 2.0) - 1.0, 2.0)) / 2.0 + 0.5;
 
@@ -64,14 +83,128 @@ const fromSimsFragmentShader = `
       blue
     );
 
-    gl_FragColor = vec4(direction, 1.0);
+    vec4 outputColor = vec4(vec3(direction), 1.0);
+    fragColor = outputColor;
   }
 `;
+
+type Gl = WebGL2RenderingContext;
+const makeShader = (gl: Gl, source: string, type: 'vertex' | 'fragment') => {
+  const shaderType = type === 'vertex' ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER;
+  const shader = gl.createShader(shaderType)!;
+
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+  if (!success) {
+    const error = gl.getShaderInfoLog(shader);
+    throw error;
+  }
+
+  return shader;
+};
+
+const makeProgram = (gl: Gl, vertexSource: string, fragmentSource: string): WebGLProgram => {
+  const program = gl.createProgram()!;
+  const vertex = makeShader(gl, vertexSource, 'vertex');
+  const fragment = makeShader(gl, fragmentSource, 'fragment');
+
+  gl.attachShader(program, vertex);
+  gl.attachShader(program, fragment);
+  gl.linkProgram(program);
+
+  const success = gl.getProgramParameter(program, gl.LINK_STATUS);
+  if (!success) {
+    const error = gl.getProgramInfoLog(program);
+    throw error;
+  }
+
+  return program;
+};
+
+type Mode = 'from-sims' | 'to-sims';
+
+const makeRenderer = (canvas: HTMLCanvasElement) => {
+  const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true });
+
+  if (!gl) {
+    throw 'Failed to create webgl2 context!';
+  }
+
+  const toSimsProgram = makeProgram(gl, vertexShader, toSimsFragmentShader);
+  const fromSimsProgram = makeProgram(gl, vertexShader, fromSimsFragmentShader);
+
+  const vertexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, fullScreenTriangle, gl.STATIC_DRAW);
+
+  gl.clearColor(1, 1, 1, 1);
+  // gl.colorMask(false, false, false, true);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  return (mode: Mode, image: HTMLImageElement) => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+
+    const stride = 4 * 4;
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, stride, 0);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, stride, 2 * 4);
+
+    const program = mode === 'from-sims'
+      ? fromSimsProgram
+      : toSimsProgram;
+
+    gl.useProgram(program);
+
+    const texture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    const textureLocation = gl.getUniformLocation(program, 'uTexture');
+    gl.uniform1i(textureLocation, 0);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // Once we've drawn our image, let's pull it out of the canvas and make a png.
+    const { width, height } = image;
+    const data = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+
+    let scanlines: Uint8Array[] = [];
+    for (let line = height - 1; line >= 0; line -= 1) {
+      const scanline = new Uint8Array(width * 4);
+      for (let component = 0; component < width * 4; component += 1) {
+        const sourceOffset = line * width * 4 + component;
+        scanline[component] = data[sourceOffset];
+      }
+
+      scanlines.push(scanline);
+    }
+
+    const outputImage = new Image.Image(scanlines, 4, 8);
+    const pngData = Png.encode(outputImage);
+
+    const blob = new Blob([pngData], { 'type': 'image/png' });
+    const url = URL.createObjectURL(blob);
+    console.log(url); 
+
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = 'converted-normal.png';
+    anchor.click();
+  };
+};
 
 const loadImage = (buffer: ArrayBuffer) => {
   return new Promise<HTMLImageElement>((resolve) => {
     const img = document.createElement('img');
-    const url = URL.createObjectURL(new Blob([buffer]));
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'image/png' }));
     img.onload = () => {
       resolve(img);
     };
@@ -80,19 +213,15 @@ const loadImage = (buffer: ArrayBuffer) => {
   });
 };
 
-type Mode = 'from-sims' | 'to-sims';
-
 export const NormalConverter = () => {
   const [mode, setMode] = useState<Mode | null>(null);
-  const [texture, setTexture] = useState<Texture>();
+  const [image, setImage] = useState<HTMLImageElement>();
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const render = useMemo(() => canvas && makeRenderer(canvas), [canvas]);
 
   const loadTexture = async (result: ArrayBuffer) => {
-    const url = URL.createObjectURL(new Blob([result]));
-    const loader = new TextureLoader();
-    loader.load(url, (loaderResult) => {
-      loaderResult.colorSpace = '';
-      setTexture(loaderResult);
-    });
+    const loadedImage = await loadImage(result);
+    setImage(loadedImage);
   };
 
   const onUploadStandardNormal = (file: ArrayBuffer) => {
@@ -105,16 +234,16 @@ export const NormalConverter = () => {
     loadTexture(file);
   };
 
-  const fragmentShader = mode === 'from-sims'
-    ? fromSimsFragmentShader
-    : toSimsFragmentShader;
+  useEffect(() => {
+    if (render && image && mode) {
+      setTimeout(() => render(mode, image), 100);
+    }
+  }, [render, image, mode]);
 
   const imageStyle = {
     borderRadius: '16px',
     filter: 'drop-shadow(rgba(17, 17, 17, 0.25) 8px 8px 7px)',
   };
-
-  console.log(texture?.image.width, texture?.image.height);
 
   return (
     <div
@@ -127,7 +256,7 @@ export const NormalConverter = () => {
     >
       <h3>Sims Normal Converter</h3>
 
-      {!texture && (
+      {!image && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <label>From Sims Encoding to Standard Normal</label>
           <FileDropZone onUpload={onUploadSimsNormal}>
@@ -163,7 +292,7 @@ export const NormalConverter = () => {
         </div>
       )}
 
-      {texture && (
+      {image && (
         <div
           style={{
             display: 'flex',
@@ -173,44 +302,19 @@ export const NormalConverter = () => {
           }}
         >
           <span style={{ width: '100%' }}>
-            <Button onClick={() => { setTexture(undefined); }}>Back</Button>
+            <Button onClick={() => { setImage(undefined); }}>Back</Button>
           </span>
 
           <div style={{ maxWidth: '400px', maxHeight: '400px', overflow: 'scroll' }}>
             <div
               style={{
-                height: texture.image.height,
-                width: texture.image.width,
+                backgroundColor: 'black',
+                position: 'relative',
+                height: image.height,
+                width: image.width,
               }}
             >
-              <Canvas
-                linear
-                gl={{
-                  alpha: true,
-                  premultipliedAlpha: false,
-                  toneMapping: NoToneMapping,
-                  outputColorSpace: '',
-                  toneMappingExposure: 1,
-                }}
-              >
-                <OrthographicCamera
-                  makeDefault
-                  zoom={1}
-                  top={1}
-                  bottom={-1}
-                  left={1}
-                  right={-1}
-                />
-                <mesh rotation={[Math.PI, 0, Math.PI]} position={[0, 0, -1]}>
-                  <planeGeometry args={[2, 2]} />
-                  <shaderMaterial
-                    vertexShader={vertexShader}
-                    fragmentShader={fragmentShader}
-                    uniforms={{ uTexture: { value: texture }}}
-                    toneMapped={false}
-                  />
-                </mesh>
-              </Canvas>
+              <canvas ref={setCanvas} width={image.width} height={image.height} />
             </div>
           </div>
           <label>(Right Click, Save Image As)</label>

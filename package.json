@@ -16,7 +16,6 @@
     "@react-three/fiber": "^8.13.5",
     "@types/three": "^0.154.0",
     "image-io": "github:jhill-did/image-io",
-    "imgio": "github:jhill-did/image-io",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router": "^6.14.2",

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useState } from 'react';
 import { FileDropZone } from './FileDropZone';
 import { Button } from './Button';
-import { Image, Png } from 'image-io';
+import { Image, Png, makeImageFromBuffer } from 'image-io';
 
 const fullScreenTriangle = Float32Array.from([
   -1.0, -3.0, 0.0, 2.0, // x y u v
@@ -176,18 +176,7 @@ const makeRenderer = (canvas: HTMLCanvasElement) => {
     const data = new Uint8Array(width * height * 4);
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
 
-    let scanlines: Uint8Array[] = [];
-    for (let line = height - 1; line >= 0; line -= 1) {
-      const scanline = new Uint8Array(width * 4);
-      for (let component = 0; component < width * 4; component += 1) {
-        const sourceOffset = line * width * 4 + component;
-        scanline[component] = data[sourceOffset];
-      }
-
-      scanlines.push(scanline);
-    }
-
-    const outputImage = new Image.Image(scanlines, 4, 8);
+    const outputImage = makeImageFromBuffer(data, width, height);
     const pngData = Png.encode(outputImage);
 
     const blob = new Blob([pngData], { 'type': 'image/png' });
@@ -317,7 +306,7 @@ export const NormalConverter = () => {
               <canvas ref={setCanvas} width={image.width} height={image.height} />
             </div>
           </div>
-          <label>(Right Click, Save Image As)</label>
+          <label>Saved as "converted-normal.png"</label>
         </div>
       )}
     </div>

@@ -72,7 +72,6 @@ const fromSimsFragmentShader = `#version 300 es
     float greenSquare = pow((green * 2.0) - 1.0, 2.0);
     float blueSquare = 1.0 - redSquare + greenSquare;
     float blueSqrt = sqrt(blueSquare);
-    // float blue = (blueSqrt + 1.0) / 2.0;
     float debug = red;
 
     float blue = sqrt(1.0 - pow((red * 2.0) - 1.0, 2.0) + pow((green * 2.0) - 1.0, 2.0)) / 2.0 + 0.5;
@@ -139,7 +138,6 @@ const makeRenderer = (canvas: HTMLCanvasElement) => {
   gl.bufferData(gl.ARRAY_BUFFER, fullScreenTriangle, gl.STATIC_DRAW);
 
   gl.clearColor(1, 1, 1, 1);
-  // gl.colorMask(false, false, false, true);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   return (mode: Mode, image: HTMLImageElement) => {
@@ -183,7 +181,7 @@ const makeRenderer = (canvas: HTMLCanvasElement) => {
     const url = URL.createObjectURL(blob);
     console.log(url); 
 
-    const anchor = document.createElement("a");
+    const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = 'converted-normal.png';
     anchor.click();
@@ -225,7 +223,7 @@ export const NormalConverter = () => {
 
   useEffect(() => {
     if (render && image && mode) {
-      setTimeout(() => render(mode, image), 100);
+      render(mode, image);
     }
   }, [render, image, mode]);
 
